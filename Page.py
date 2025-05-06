@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 class Page:
-	INVALID = -1;
+	INVALID = -1

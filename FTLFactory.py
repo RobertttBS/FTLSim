@@ -1,15 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-import SSD;
+import SSD
 
-import PageFTL;
-import DAC;
+import PageFTL
+import DAC
 
 def create(args):
-	ftl = args["ftl"];
+	ftl = args["ftl"]
 
 	if ftl == "page":
-		return PageFTL.PageFTL(args, SSD.BLOCKS);
+		return PageFTL.PageFTL(args, SSD.BLOCKS)
 	elif ftl == "dac":
-		return DAC.DAC(args, SSD.BLOCKS);
-	return None;
+		return DAC.DAC(args, SSD.BLOCKS)
+	return None

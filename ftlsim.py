@@ -1,77 +1,77 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-import os;
-import sys;
-import argparse;
-import datetime;
+import os
+import sys
+import argparse
+import datetime
 
-import FTLFactory;
-import Statistics;
-import NAND;
-import SSD;
+import FTLFactory
+import Statistics
+import NAND
+import SSD
 
-from Trace import *;
+from Trace import *
 
-args = None;
+args = None
 
 def parse_argv():
-	global args;
+	global args
 
-	parser = argparse.ArgumentParser(description='FTL simulator');
+	parser = argparse.ArgumentParser(description='FTL simulator')
 	parser.add_argument(
 			'infile',
 			nargs = '?',
 			default = '-',
 			type = argparse.FileType('r'),
 			help = "Read operations from the workload file. \
-					If omitted, read from stdin");
+					If omitted, read from stdin")
 	parser.add_argument(
 			'-outfile',
 			nargs = '?',
 			type = argparse.FileType('w'),
-			help = "Write results additionally to the output file.");
+			help = "Write results additionally to the output file.")
 	parser.add_argument(
 			'-verbose', '-v',
 			action = 'count',
 			default = 0,
-			help = "Print out more information");
+			help = "Print out more information")
 	parser.add_argument(
 			'-quiet', '-q',
 			action = 'count',
 			default = 0,
-			help = "Print out the summary only");
+			help = "Print out the summary only")
 	parser.add_argument(
 			'-ftl',
 			nargs = '?',
 			default = "page",
 			choices = ["page", "dac"],
-			help = "Select FTL implementation");
+			help = "Select FTL implementation")
 	parser.add_argument(
 			'-no_backup',
 			action = 'store_true',
 			default = argparse.SUPPRESS,
-			help = "Do not backup LSB pages");
+			help = "Do not backup LSB pages")
 	parser.add_argument(
 			'-per_request',
 			action = 'store_true',
 			default = argparse.SUPPRESS,
-			help = "Do per-request backup scheme (default: per-page)");
+			help = "Do per-request backup scheme (default: per-page)")
 	parser.add_argument(
 			'-init_empty',
 			action = 'store_true',
-			help = "Start with empty SSD (default: filled SSD)");
+			help = "Start with empty SSD (default: filled SSD)")
 	parser.add_argument(
 			'-statistics_page',
 			nargs = '?',
 			type = argparse.FileType('w'),
 			default = argparse.SUPPRESS,
-			help = "Save per-page timing statistics to the file");
+			help = "Save per-page timing statistics to the file")
 	parser.add_argument(
 			'-statistics_request',
 			nargs = '?',
 			type = argparse.FileType('w'),
 			default = argparse.SUPPRESS,
-			help = "Save per-request timing statistics to the file");
+			help = "Save per-request timing statistics to the file")
 
 	# FTL-specific arguments
 	# For DAC
@@ -79,14 +79,14 @@ def parse_argv():
 			'--regions',
 			type = int,
 			default = argparse.SUPPRESS,
-			help = "DAC: # of regions");
+			help = "DAC: # of regions")
 
-	args = parser.parse_args();
+	args = parser.parse_args()
 
-	trace_init(args.verbose - args.quiet, args.outfile);
+	trace_init(args.verbose - args.quiet, args.outfile)
 
-	ftl_args = {};
-	ftl_args["ftl"] = args.ftl;
+	ftl_args = {}
+	ftl_args["ftl"] = args.ftl
 
 	# FTL parameters
 	for k,v in vars(args).items():
@@ -96,41 +96,42 @@ def parse_argv():
 				"interval", "low_watermark", "high_watermark",
 				"omega_threshold", "size_threshold",
 				"print_workload_locality"]:
-			ftl_args[k] = v;
+			ftl_args[k] = v
 
-	return ftl_args;
+	return ftl_args
 
 def process_workload(ftl, workload):
 
-	progress_marks = [];
-	progress_last = datetime.datetime.now();
-	progress_delta = 0;
+	progress_marks = []
+	progress_last = datetime.datetime.now()
+	progress_delta = 0
 
 	if workload is not sys.stdin:
-		trace("- Workload file:", workload.name, level = 1);
+		trace("- Workload file:", workload.name, level = 1)
 
-		num_requests = sum(1 for l in workload);
-		trace("- Requests to process:", num_requests);
-		progress_delta = num_requests / 10;
-		progress_marks = [num_requests * i / 10 for i in range(10)];
-		workload.seek(0);
+		num_requests = sum(1 for l in workload)
+		trace("- Requests to process:", num_requests)
+		# In Python 3, / is float division. This should be fine here.
+		progress_delta = num_requests / 10
+		progress_marks = [num_requests * i / 10 for i in range(10)]
+		workload.seek(0)
 
 
-	trace("- Running workloads ...");
-	for l in workload.xreadlines():
-		e = l.strip().lstrip().split();
+	trace("- Running workloads ...")
+	for l in workload: # Changed xreadlines() to direct iteration
+		e = l.strip().lstrip().split()
 
-		if (len(e)) == 0: continue;
+		if (len(e)) == 0: continue
 
-		RW = e[0].upper();
+		RW = e[0].upper()
 
 		# Skip comments
-		if RW[0] == '#': continue;
+		if RW[0] == '#': continue
 
-		sector_start = long(e[1]);
-		sector_count = long(e[2]);
+		sector_start = int(e[1]) # Changed long() to int()
+		sector_count = int(e[2]) # Changed long() to int()
 
-		assert sector_count <= SSD.SECTOR_MAX;
+		assert sector_count <= SSD.SECTOR_MAX
 
 		# Wrap-around to the LBA space
 		if sector_start >= SSD.SECTOR_MAX:
@@ -146,62 +147,62 @@ def process_workload(ftl, workload):
 
 		if Statistics.clock in progress_marks:
 			trace("  %d%% " % (progress_marks.index(Statistics.clock) * 10),
-					level = 4);
+					level = 4)
 
-			now = datetime.datetime.now();
-			elapsed = now - progress_last;
-			progress_last = now;
-		Statistics.clock += 1;
+			now = datetime.datetime.now()
+			elapsed = now - progress_last
+			progress_last = now
+		Statistics.clock += 1
 
 
 def main():
-	global args;
-	ftl_args = parse_argv();
+	global args
+	ftl_args = parse_argv()
 
-	trace("***********************************************************");
-	trace("*                  FTL simulator v0.9-l                   *");
-	trace("*                                                         *");
-	trace("*                       by sanghoon@calab.kaist.ac.kr     *");
-	trace("***********************************************************");
-	trace
+	trace("***********************************************************")
+	trace("*                  FTL simulator v0.9-l                   *")
+	trace("*                                                         *")
+	trace("*                       by sanghoon@calab.kaist.ac.kr     *")
+	trace("***********************************************************")
+	trace() # Assuming trace() handles newline, or change to trace("") if it expects an arg
 
-	ftl = FTLFactory.create(ftl_args);
+	ftl = FTLFactory.create(ftl_args)
 	if ftl == None:
-		print "Cannot create FTL", args.ftl;
-		return;
+		print("Cannot create FTL", args.ftl) # Changed print
+		return
 
-	trace("- Run at", datetime.datetime.now(), level = 1);
-	trace("- FTL:", ftl.name, level = 1);
+	trace("- Run at", datetime.datetime.now(), level = 1)
+	trace("- FTL:", ftl.name, level = 1)
 	for k,v in ftl_args.items():
 		if k != "ftl":
-			trace("  " + k + " =", v, level = 1);
+			trace("  " + k + " =", v, level = 1)
 
 	if not args.init_empty:
-		trace("- Fill up usable space ...", newline = False);
+		trace("- Fill up usable space ...", newline = False)
 		for req in range(int(SSD.BLOCKS * (1 - SSD.PROVISION_RATIO))):
-			sector_start = req * NAND.PAGES_PER_BLOCK * NAND.SECTORS_PER_PAGE;
+			sector_start = req * NAND.PAGES_PER_BLOCK * NAND.SECTORS_PER_PAGE
 			ftl.process('W',
-					sector_start, NAND.PAGES_PER_BLOCK * NAND.SECTORS_PER_PAGE);
-		Statistics.reset();
-		trace("Done");
+					sector_start, NAND.PAGES_PER_BLOCK * NAND.SECTORS_PER_PAGE)
+		Statistics.reset()
+		trace("Done")
 
-	dt_start = datetime.datetime.now();
+	dt_start = datetime.datetime.now()
 
 	try:
-		process_workload(ftl, args.infile);
+		process_workload(ftl, args.infile)
 	except KeyboardInterrupt as e:
-		print;
-		pass;
+		print() # Changed print
+		pass
 
-	dt_finish = datetime.datetime.now();
+	dt_finish = datetime.datetime.now()
 
-	trace();
-	trace("- Run for", dt_finish - dt_start);
-	trace("- Results");
-	trace();
+	trace() # Assuming trace() handles newline
+	trace("- Run for", dt_finish - dt_start)
+	trace("- Results")
+	trace() # Assuming trace() handles newline
 
-	Statistics.print_stats();
+	Statistics.print_stats()
 
 
 if __name__ == "__main__":
-	main();
+	main()
